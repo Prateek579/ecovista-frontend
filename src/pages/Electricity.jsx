@@ -10,6 +10,7 @@ export default function Electricity() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [skipped, setSkipped] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [message, setMessage] = useState(null);
   const today = new Date().toISOString().split('T')[0];
 
@@ -23,6 +24,7 @@ export default function Electricity() {
       const data = res.data.electricity;
       setSavedAppliances(data?.entries || []);
       setSkipped(data?.skipped || false);
+      setSubmitted(data?.submitted || false);
     } catch (e) {
       console.error(e);
     } finally {
@@ -64,6 +66,7 @@ export default function Electricity() {
       });
       setSavedAppliances(res.data.electricity.entries || []);
       setSkipped(false);
+      setSubmitted(true);
       setSelectedKeys([]);
       setHours({});
       showMsg(`${valid.length} appliance(s) saved!`);
@@ -80,6 +83,7 @@ export default function Electricity() {
       const res = await API.post('/electricity/previous', { date: today });
       setSavedAppliances(res.data.electricity.entries || []);
       setSkipped(false);
+      setSubmitted(true);
       setSelectedKeys([]);
       showMsg('Previous data copied!');
     } catch (err) {
@@ -95,6 +99,7 @@ export default function Electricity() {
       await API.post('/electricity/skip', { date: today });
       setSavedAppliances([]);
       setSkipped(true);
+      setSubmitted(true);
       setSelectedKeys([]);
       showMsg('Electricity skipped');
     } catch (err) {
@@ -115,11 +120,12 @@ export default function Electricity() {
       {message && <div className={`toast toast-${message.type}`}>{message.text}</div>}
 
       {/* Summary Area */}
-      {(savedAppliances.length > 0 || skipped) && (
-        <div className="glass-card no-hover" style={{ marginBottom: 24, borderLeft: '4px solid var(--primary-light)' }}>
+      {(submitted) && (
+        <div className="glass-card no-hover" style={{ marginBottom: 24, borderLeft: `4px solid ${skipped ? 'var(--accent-amber)' : 'var(--primary-light)'}` }}>
           {skipped ? (
             <div style={{ textAlign: 'center', padding: '10px 0' }}>
               <h3 style={{ margin: 0 }}>⏭️ Tracking Skipped for Today</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: 4 }}>You have chosen to skip electricity logging for today.</p>
             </div>
           ) : (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -137,8 +143,8 @@ export default function Electricity() {
       )}
 
       {/* Selection Grid */}
-      <div className="glass-card no-hover" style={{ marginBottom: 24 }}>
-        <h3 style={{ marginBottom: 12 }}>Step 1: Select Used Appliances</h3>
+      <div className={`glass-card no-hover ${submitted ? 'card-disabled' : ''}`} style={{ marginBottom: 24 }}>
+        <h3 style={{ marginBottom: 12 }}>{submitted ? 'Appliances Recorded' : 'Step 1: Select Used Appliances'}</h3>
         <div className="chip-grid">
           {ELECTRICITY_APPLIANCES.map((app) => {
             const saved = isSaved(app.key);
@@ -150,12 +156,12 @@ export default function Electricity() {
                 key={app.key}
                 className={`chip ${selected ? 'selected' : ''} ${saved ? 'saved' : ''}`}
                 onClick={() => toggleSelect(app.key)}
-                disabled={saved}
+                disabled={saved || submitted}
                 style={{
-                  opacity: saved ? 0.6 : 1,
+                  opacity: (saved || submitted && !saved) ? 0.6 : 1,
                   background: saved ? 'var(--bg-glass-strong)' : undefined,
                   border: saved ? '1px solid var(--primary-light)' : undefined,
-                  cursor: saved ? 'default' : 'pointer'
+                  cursor: (saved || submitted) ? 'default' : 'pointer'
                 }}
               >
                 <span style={{ marginRight: 6 }}>{app.icon}</span>
@@ -212,7 +218,7 @@ export default function Electricity() {
       )}
 
       {/* Action Buttons */}
-      {!skipped && (
+      {!submitted && (
         <div className="btn-group">
           <button className="btn btn-secondary" onClick={handlePrevious} disabled={submitting}>
             📋 Save as Previous

@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { useGoogleLogin } from '@react-oauth/google';
+import axios from 'axios';
 import API from '../api/axios';
 import Loader from '../components/Loader';
 
@@ -6,6 +8,7 @@ export default function Home() {
   const [summary, setSummary] = useState({ totalCO2Emission: 0, totalCO2Saving: 0, daysTracked: 0 });
   const [todayData, setTodayData] = useState(null);
   const [googleFit, setGoogleFit] = useState(null);
+  const [isGoogleConnected, setIsGoogleConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
 
@@ -25,6 +28,12 @@ export default function Home() {
       setSummary(summaryRes.data);
       setTodayData(dailyRes.data.data);
       setGoogleFit(fitRes.data.googleFit);
+      setIsGoogleConnected(fitRes.data.isGoogleConnected);
+
+      // If already connected, do a background sync to get latest data
+      if (fitRes.data.isGoogleConnected) {
+        performAutoSync();
+      }
     } catch (error) {
       console.error('Failed to fetch home data:', error);
     } finally {
@@ -32,29 +41,45 @@ export default function Home() {
     }
   };
 
-  const syncGoogleFit = async () => {
+  const performAutoSync = async () => {
     setSyncing(true);
     try {
-      // Simulate Google Fit API data fetch
-      // In production, this would use the Google Fit REST API
-      // For now, we calculate from user's activity data
-      const fitData = {
-        walkingKm: parseFloat((Math.random() * 5).toFixed(2)),
-        runningKm: parseFloat((Math.random() * 3).toFixed(2)),
-        cyclingKm: parseFloat((Math.random() * 8).toFixed(2)),
-        date: today,
-      };
-
-      const res = await API.post('/googlefit/sync', fitData);
+      const res = await API.get('/googlefit/auto-sync');
       setGoogleFit(res.data.googleFit);
       // Refresh summary
       const summaryRes = await API.get('/analytics/summary');
       setSummary(summaryRes.data);
     } catch (error) {
-      console.error('Google Fit sync failed:', error);
+      console.error('Auto sync failed:', error);
     } finally {
       setSyncing(false);
     }
+  };
+
+  const googleLogin = useGoogleLogin({
+    onSuccess: async (codeResponse) => {
+      setSyncing(true);
+      try {
+        // Send the code to backend to exchange for refresh token
+        const res = await API.post('/googlefit/connect', { code: codeResponse.code });
+        setIsGoogleConnected(true);
+        // After connecting, do the first sync
+        performAutoSync();
+      } catch (error) {
+        console.error('Failed to connect Google Fit:', error);
+        alert('Connection failed. Make sure you have added GOOGLE_CLIENT_SECRET to your server .env');
+      } finally {
+        setSyncing(false);
+      }
+    },
+    flow: 'auth-code',
+    scope: 'openid email https://www.googleapis.com/auth/fitness.activity.read https://www.googleapis.com/auth/fitness.location.read',
+    prompt: 'consent',
+  });
+
+  const syncGoogleFit = () => {
+    setSyncing(true);
+    googleLogin();
   };
 
   if (loading) return <Loader />;
@@ -86,13 +111,18 @@ export default function Home() {
       <div className="glass-card no-hover" style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <h3>🏃 Google Fit Activity</h3>
-          <button
-            className="btn btn-outline btn-sm"
-            onClick={syncGoogleFit}
-            disabled={syncing}
-          >
-            {syncing ? 'Syncing...' : '🔄 Sync Now'}
-          </button>
+          {!isGoogleConnected && (
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={syncGoogleFit}
+              disabled={syncing}
+            >
+              {syncing ? 'Connecting...' : '🔗 Connect Google Fit'}
+            </button>
+          )}
+          {isGoogleConnected && syncing && (
+            <span style={{ fontSize: '0.8rem', color: 'var(--primary-light)' }}>🔄 Auto-syncing...</span>
+          )}
         </div>
 
         {googleFit?.synced ? (
@@ -156,7 +186,10 @@ export default function Home() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
               <span>🗑️ Waste</span>
               <span style={{ fontWeight: 600 }}>
-                {(todayData.waste?.reduce((s, w) => s + (w.co2Emission || 0), 0) || 0).toFixed(4)} kg
+                {(Array.isArray(todayData.waste) 
+                  ? todayData.waste 
+                  : (todayData.waste?.entries || [])
+                ).reduce((s, w) => s + (w.co2Emission || 0), 0).toFixed(4)} kg
               </span>
             </div>
 

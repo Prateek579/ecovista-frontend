@@ -40,19 +40,15 @@ export default function Travel() {
       showMessage('Enter a valid distance', 'error');
       return;
     }
-    console.log("dsfd")
     setSubmitting(true);
     try {
       const res = await API.post('/travel', { mode: modeKey, distance: dist, date: today });
-
-      // if (res.data && res.data.mode) {
-      //   setTravelData((prev) => ({ ...prev, [modeKey]: res.data.mode }));
-      //   setDistances((prev) => ({ ...prev, [modeKey]: '' }));
-      //   showMessage(`${TRAVEL_MODES.find((m) => m.key === modeKey)?.label} saved!`);
-      // } else {
-      //   console.error('Unexpected API response:', res.data);
-      //   throw new Error('Server returned invalid data');
-      // }
+      
+      if (res.data && res.data.mode) {
+        setTravelData((prev) => ({ ...prev, [modeKey]: res.data.mode }));
+        setDistances((prev) => ({ ...prev, [modeKey]: '' }));
+        showMessage(`${TRAVEL_MODES.find((m) => m.key === modeKey)?.label} saved!`);
+      }
     } catch (err) {
       console.error('Travel save error:', err);
       const errorMsg = err.response?.data?.error || err.message || 'Failed to save';
