@@ -11,6 +11,7 @@ export default function Electricity() {
   const [submitting, setSubmitting] = useState(false);
   const [skipped, setSkipped] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
   const [message, setMessage] = useState(null);
   const today = new Date().toISOString().split('T')[0];
 
@@ -24,6 +25,7 @@ export default function Electricity() {
       const data = res.data.electricity;
       setSavedAppliances(data?.entries || []);
       setSkipped(data?.skipped || false);
+      setIsLocked(data?.isLocked || false);
       setSubmitted(data?.submitted || false);
     } catch (e) {
       console.error(e);
@@ -66,6 +68,7 @@ export default function Electricity() {
       });
       setSavedAppliances(res.data.electricity.entries || []);
       setSkipped(false);
+      setIsLocked(res.data.electricity.isLocked || false);
       setSubmitted(true);
       setSelectedKeys([]);
       setHours({});
@@ -83,6 +86,7 @@ export default function Electricity() {
       const res = await API.post('/electricity/previous', { date: today });
       setSavedAppliances(res.data.electricity.entries || []);
       setSkipped(false);
+      setIsLocked(true);
       setSubmitted(true);
       setSelectedKeys([]);
       showMsg('Previous data copied!');
@@ -99,6 +103,7 @@ export default function Electricity() {
       await API.post('/electricity/skip', { date: today });
       setSavedAppliances([]);
       setSkipped(true);
+      setIsLocked(true);
       setSubmitted(true);
       setSelectedKeys([]);
       showMsg('Electricity skipped');
@@ -143,8 +148,8 @@ export default function Electricity() {
       )}
 
       {/* Selection Grid */}
-      <div className={`glass-card no-hover ${submitted ? 'card-disabled' : ''}`} style={{ marginBottom: 24 }}>
-        <h3 style={{ marginBottom: 12 }}>{submitted ? 'Appliances Recorded' : 'Step 1: Select Used Appliances'}</h3>
+      <div className={`glass-card no-hover ${isLocked ? 'card-disabled' : ''}`} style={{ marginBottom: 24 }}>
+        <h3 style={{ marginBottom: 12 }}>{isLocked ? 'Appliances Recorded' : 'Step 1: Select Used Appliances'}</h3>
         <div className="chip-grid">
           {ELECTRICITY_APPLIANCES.map((app) => {
             const saved = isSaved(app.key);
@@ -156,12 +161,12 @@ export default function Electricity() {
                 key={app.key}
                 className={`chip ${selected ? 'selected' : ''} ${saved ? 'saved' : ''}`}
                 onClick={() => toggleSelect(app.key)}
-                disabled={saved || submitted}
+                disabled={saved || isLocked}
                 style={{
-                  opacity: (saved || submitted && !saved) ? 0.6 : 1,
+                  opacity: (saved || isLocked && !saved) ? 0.6 : 1,
                   background: saved ? 'var(--bg-glass-strong)' : undefined,
                   border: saved ? '1px solid var(--primary-light)' : undefined,
-                  cursor: (saved || submitted) ? 'default' : 'pointer'
+                  cursor: (saved || isLocked) ? 'default' : 'pointer'
                 }}
               >
                 <span style={{ marginRight: 6 }}>{app.icon}</span>
@@ -218,7 +223,7 @@ export default function Electricity() {
       )}
 
       {/* Action Buttons */}
-      {!submitted && (
+      {!isLocked && (
         <div className="btn-group">
           <button className="btn btn-secondary" onClick={handlePrevious} disabled={submitting}>
             📋 Save as Previous

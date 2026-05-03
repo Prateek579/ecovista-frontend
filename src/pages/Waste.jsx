@@ -8,6 +8,7 @@ export default function Waste() {
   const [wasteData, setWasteData] = useState([]);
   const [skipped, setSkipped] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
@@ -25,6 +26,7 @@ export default function Waste() {
       const entries = Array.isArray(wasteObj) ? wasteObj : (wasteObj.entries || []);
       setWasteData(entries);
       setSkipped(wasteObj.skipped || false);
+      setIsLocked(wasteObj.isLocked || false);
       setSubmitted(wasteObj.submitted || entries.length > 0 || false);
     } catch (error) {
       console.error('Failed to fetch waste:', error);
@@ -46,6 +48,7 @@ export default function Waste() {
       const entries = Array.isArray(wasteObj) ? wasteObj : (wasteObj.entries || []);
       setWasteData(entries);
       setSkipped(wasteObj.skipped || false);
+      setIsLocked(wasteObj.isLocked || true);
       setSubmitted(wasteObj.submitted || entries.length > 0 || false);
       showMessage('Previous waste data copied!');
     } catch (error) {
@@ -61,6 +64,7 @@ export default function Waste() {
       const res = await API.post('/waste/skip', { date: today });
       setWasteData([]);
       setSkipped(true);
+      setIsLocked(true);
       setSubmitted(true);
       showMessage('Waste skipped for today');
     } catch (error) {
@@ -93,62 +97,82 @@ export default function Waste() {
             </div>
           ) : (
             <>
-              <h3 style={{ marginBottom: 16 }}>Today's Entries</h3>
-              {wasteData.map((entry, idx) => {
-                const cat = WASTE_CATEGORIES.find((c) => c.key === entry.category);
-                return (
-                  <div key={idx} style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '12px 0', borderBottom: idx < wasteData.length - 1 ? '1px solid var(--border)' : 'none',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: '1.3rem' }}>{cat?.icon}</span>
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{cat?.label}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                          {entry.items.join(', ')} • {entry.quantityLabel}
+              <h3 style={{ marginBottom: 20, color: 'var(--text-primary)' }}>Today's Entries</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {wasteData.map((entry, idx) => {
+                  const cat = WASTE_CATEGORIES.find((c) => c.key === entry.category);
+                  return (
+                    <div key={idx} style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '16px', background: 'var(--bg-glass)', borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                        <span style={{ fontSize: '1.8rem', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}>{cat?.icon}</span>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>{cat?.label}</div>
+                          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                            {entry.items.join(', ')} • {entry.quantityLabel}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ color: 'var(--accent-rose)', fontWeight: 600, fontSize: '0.85rem' }}>
-                        {entry.co2Emission.toFixed(4)} kg
-                      </div>
-                      {entry.co2Saving > 0 && (
-                        <div style={{ color: 'var(--primary-light)', fontSize: '0.75rem' }}>
-                          🌿 {entry.co2Saving.toFixed(4)} saved
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ color: 'var(--accent-rose)', fontWeight: 700, fontSize: '1rem' }}>
+                          {entry.co2Emission.toFixed(4)} kg
                         </div>
-                      )}
-                      {entry.recycled && <span className="badge badge-success">Recycled</span>}
+                        {entry.co2Saving > 0 && (
+                          <div style={{ color: 'var(--primary-light)', fontSize: '0.8rem', fontWeight: 600 }}>
+                            🌿 {entry.co2Saving.toFixed(4)} saved
+                          </div>
+                        )}
+                        {entry.recycled && <span className="badge badge-success" style={{ marginTop: 4 }}>Recycled</span>}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </>
           )}
         </div>
       )}
 
       {/* Category cards */}
-      <div className={`grid-auto ${submitted ? 'card-disabled' : ''}`}>
+      <div className={`grid-auto ${isLocked ? 'card-disabled' : ''}`}>
         {WASTE_CATEGORIES.map((cat) => (
           <button
             key={cat.key}
             className="glass-card"
-            onClick={() => !submitted && navigate(`/waste/${cat.key}`)}
-            style={{ textAlign: 'center', cursor: submitted ? 'default' : 'pointer', opacity: submitted ? 0.7 : 1 }}
-            disabled={submitted}
+            onClick={() => !isLocked && navigate(`/waste/${cat.key}`)}
+            style={{ 
+              textAlign: 'center', 
+              cursor: isLocked ? 'default' : 'pointer', 
+              opacity: isLocked ? 0.7 : 1,
+              borderBottom: `4px solid ${cat.color}`,
+              background: `linear-gradient(180deg, var(--bg-card) 0%, ${cat.color}15 100%)`,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: '160px'
+            }}
+            disabled={isLocked}
           >
-            <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>{cat.icon}</div>
-            <h4>{cat.label}</h4>
+            <div style={{ 
+              fontSize: '3rem', 
+              marginBottom: 12,
+              filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))'
+            }}>
+              {cat.icon}
+            </div>
+            <h4 style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: '1.1rem' }}>{cat.label}</h4>
             {submittedCategories.includes(cat.key) && (
-              <span className="badge badge-success" style={{ marginTop: 8 }}>Added</span>
+              <span className="badge badge-success" style={{ marginTop: 12, background: 'var(--primary)', color: 'white' }}>Added</span>
             )}
           </button>
         ))}
       </div>
 
-      {!submitted && (
+      {!isLocked && (
         <div className="btn-group" style={{ marginTop: 24 }}>
           <button className="btn btn-secondary" onClick={handlePrevious} disabled={submitting}>
             📋 Save as Previous

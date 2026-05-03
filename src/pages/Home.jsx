@@ -11,6 +11,9 @@ export default function Home() {
   const [isGoogleConnected, setIsGoogleConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [aqi, setAqi] = useState(null);
+  const [user, setUser] = useState(null);
+  const [locationLoading, setLocationLoading] = useState(false);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -20,15 +23,22 @@ export default function Home() {
 
   const fetchData = async () => {
     try {
-      const [summaryRes, dailyRes, fitRes] = await Promise.all([
+      const [summaryRes, dailyRes, fitRes, profileRes] = await Promise.all([
         API.get('/analytics/summary'),
         API.get(`/analytics/daily?date=${today}`),
         API.get(`/googlefit?date=${today}`),
+        API.get('/profile'),
       ]);
       setSummary(summaryRes.data);
       setTodayData(dailyRes.data.data);
       setGoogleFit(fitRes.data.googleFit);
       setIsGoogleConnected(fitRes.data.isGoogleConnected);
+      setUser(profileRes.data.user);
+
+      // If location exists, fetch AQI
+      if (profileRes.data.user?.location?.lat) {
+        fetchAQI();
+      }
 
       // If already connected, do a background sync to get latest data
       if (fitRes.data.isGoogleConnected) {
@@ -39,6 +49,48 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchAQI = async () => {
+    try {
+      const res = await API.get('/aqi');
+      setAqi(res.data);
+    } catch (error) {
+      console.error('Failed to fetch AQI:', error);
+    }
+  };
+
+  const handleUpdateLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser');
+      return;
+    }
+
+    setLocationLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        try {
+          const res = await API.put('/profile', {
+            location: { lat: latitude, lon: longitude },
+          });
+          setUser(res.data.user);
+          // Fetch new AQI after location update
+          fetchAQI();
+          alert('Location updated successfully!');
+        } catch (error) {
+          console.error('Failed to update location:', error);
+          alert('Failed to update location on server.');
+        } finally {
+          setLocationLoading(false);
+        }
+      },
+      (error) => {
+        console.error('Error getting location:', error);
+        setLocationLoading(false);
+        alert('Unable to retrieve your location. Please check permissions.');
+      }
+    );
   };
 
   const performAutoSync = async () => {
@@ -82,6 +134,16 @@ export default function Home() {
     googleLogin();
   };
 
+  const getAQIColor = (aqiValue) => {
+    if (!aqiValue) return 'var(--bg-glass)';
+    if (aqiValue <= 50) return 'rgba(76, 175, 80, 0.15)'; // Good - Green
+    if (aqiValue <= 100) return 'rgba(255, 235, 59, 0.15)'; // Moderate - Yellow
+    if (aqiValue <= 150) return 'rgba(255, 152, 0, 0.15)'; // Unhealthy for sensitive - Orange
+    if (aqiValue <= 200) return 'rgba(244, 67, 54, 0.15)'; // Unhealthy - Red
+    if (aqiValue <= 300) return 'rgba(156, 39, 176, 0.15)'; // Very Unhealthy - Purple
+    return 'rgba(121, 85, 72, 0.15)'; // Hazardous - Brown
+  };
+
   if (loading) return <Loader />;
 
   return (
@@ -105,6 +167,59 @@ export default function Home() {
             <div className="stat-label">Total CO₂ Saved (kg)</div>
           </div>
         </div>
+      </div>
+
+      {/* AQI Section */}
+      <div className="glass-card no-hover" style={{ marginBottom: 24, borderLeft: `8px solid ${aqi ? (aqi.aqi <= 50 ? '#4caf50' : aqi.aqi <= 100 ? '#ffeb3b' : aqi.aqi <= 150 ? '#ff9800' : '#f44336') : 'transparent'}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <h3 style={{ margin: 0 }}>🌬️ Air Quality Index</h3>
+          <button 
+            className="btn btn-outline btn-sm" 
+            onClick={handleUpdateLocation}
+            disabled={locationLoading}
+          >
+            {locationLoading ? 'Updating...' : user?.location?.lat ? '🔄 Update Location' : '📍 Set Location'}
+          </button>
+        </div>
+
+        {user?.location?.lat ? (
+          aqi ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+              <div style={{ 
+                fontSize: '2.5rem', 
+                fontWeight: 800, 
+                padding: '12px 24px', 
+                background: 'var(--bg-glass-strong)', 
+                borderRadius: '16px',
+                color: aqi.aqi <= 50 ? '#81c784' : aqi.aqi <= 100 ? '#fff176' : aqi.aqi <= 150 ? '#ffb74d' : '#e57373',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              }}>
+                {aqi.aqi}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: 4 }}>{aqi.status}</div>
+                <div style={{ fontSize: '0.95rem', color: 'var(--text-muted)' }}>📍 {aqi.city}</div>
+                {aqi.mockData && (
+                  <div style={{ fontSize: '0.75rem', marginTop: 8, color: 'var(--accent-rose)', fontStyle: 'italic' }}>
+                    Note: Add WAQI_TOKEN to server .env for real-time data.
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '20px 0' }}>
+              <div className="loader-mini"></div>
+              <p style={{ marginTop: 12, color: 'var(--text-muted)' }}>Fetching live air quality data...</p>
+            </div>
+          )
+        ) : (
+          <div style={{ textAlign: 'center', padding: '30px 20px', background: 'var(--bg-glass-strong)', borderRadius: '12px' }}>
+            <p style={{ marginBottom: 16, color: 'var(--text-muted)' }}>Set your location to see real-time air quality in your area.</p>
+            <button className="btn btn-primary" onClick={handleUpdateLocation} disabled={locationLoading}>
+              📍 Enable Location Access
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Google Fit Section */}
