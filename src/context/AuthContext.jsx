@@ -38,18 +38,7 @@ export function AuthProvider({ children }) {
     return res.data;
   };
 
-  const googleAuth = async (credential, profileData = null) => {
-    const res = await API.post('/auth/google', { credential, ...profileData });
-    if (res.data.needsProfile) {
-      return res.data; // Needs additional profile info
-    }
-    const { token: newToken, user: newUser } = res.data;
-    setToken(newToken);
-    setUser(newUser);
-    localStorage.setItem('ecovista_token', newToken);
-    localStorage.setItem('ecovista_user', JSON.stringify(newUser));
-    return res.data;
-  };
+
 
   const logout = () => {
     setToken(null);
@@ -64,7 +53,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, signup, googleAuth, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, token, loading, login, signup, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

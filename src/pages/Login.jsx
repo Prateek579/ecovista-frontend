@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { GoogleLogin } from '@react-oauth/google';
+
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, googleAuth } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -25,24 +25,7 @@ export default function Login() {
     }
   };
 
-  const handleGoogleSuccess = async (credentialResponse) => {
-    setError('');
-    setLoading(true);
-    try {
-      const result = await googleAuth(credentialResponse.credential);
-      if (result.needsProfile) {
-        // Store Google data and redirect to signup for profile completion
-        localStorage.setItem('ecovista_google_pending', JSON.stringify(result.googleData));
-        navigate('/signup?google=true');
-      } else {
-        navigate('/');
-      }
-    } catch (err) {
-      setError(err.response?.data?.error || 'Google sign-in failed');
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   return (
     <div className="auth-container">
@@ -94,18 +77,7 @@ export default function Login() {
           </button>
         </form>
 
-        <div className="auth-divider">or continue with</div>
 
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <GoogleLogin
-            onSuccess={handleGoogleSuccess}
-            onError={() => setError('Google sign-in failed')}
-            theme="filled_black"
-            shape="pill"
-            size="large"
-            width="100%"
-          />
-        </div>
 
         <div className="auth-footer">
           Don't have an account? <Link to="/signup">Sign up</Link>

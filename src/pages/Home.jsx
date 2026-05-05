@@ -173,8 +173,8 @@ export default function Home() {
       <div className="glass-card no-hover" style={{ marginBottom: 24, borderLeft: `8px solid ${aqi ? (aqi.aqi <= 50 ? '#4caf50' : aqi.aqi <= 100 ? '#ffeb3b' : aqi.aqi <= 150 ? '#ff9800' : '#f44336') : 'transparent'}` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <h3 style={{ margin: 0 }}>🌬️ Air Quality Index</h3>
-          <button 
-            className="btn btn-outline btn-sm" 
+          <button
+            className="btn btn-outline btn-sm"
             onClick={handleUpdateLocation}
             disabled={locationLoading}
           >
@@ -185,11 +185,11 @@ export default function Home() {
         {user?.location?.lat ? (
           aqi ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-              <div style={{ 
-                fontSize: '2.5rem', 
-                fontWeight: 800, 
-                padding: '12px 24px', 
-                background: 'var(--bg-glass-strong)', 
+              <div style={{
+                fontSize: '2.5rem',
+                fontWeight: 800,
+                padding: '12px 24px',
+                background: 'var(--bg-glass-strong)',
                 borderRadius: '16px',
                 color: aqi.aqi <= 50 ? '#81c784' : aqi.aqi <= 100 ? '#fff176' : aqi.aqi <= 150 ? '#ffb74d' : '#e57373',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
@@ -222,7 +222,7 @@ export default function Home() {
         )}
       </div>
 
-      {/* Google Fit Section */}
+      {/* Google Fit Section
       <div className="glass-card no-hover" style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <h3>🏃 Google Fit Activity</h3>
@@ -271,7 +271,7 @@ export default function Home() {
             </span>
           </div>
         )}
-      </div>
+      </div> */}
 
       {/* Today's Overview */}
       <div className="glass-card no-hover">
@@ -301,8 +301,8 @@ export default function Home() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
               <span>🗑️ Waste</span>
               <span style={{ fontWeight: 600 }}>
-                {(Array.isArray(todayData.waste) 
-                  ? todayData.waste 
+                {(Array.isArray(todayData.waste)
+                  ? todayData.waste
                   : (todayData.waste?.entries || [])
                 ).reduce((s, w) => s + (w.co2Emission || 0), 0).toFixed(4)} kg
               </span>

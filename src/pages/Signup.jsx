@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { GoogleLogin } from '@react-oauth/google';
+
 
 export default function Signup() {
-  const [searchParams] = useSearchParams();
-  const isGoogleFlow = searchParams.get('google') === 'true';
+
 
   const [form, setForm] = useState({
     name: '',
@@ -17,22 +16,13 @@ export default function Signup() {
     state: '',
     district: '',
   });
-  const [googleData, setGoogleData] = useState(null);
+
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signup, googleAuth } = useAuth();
+  const { signup } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (isGoogleFlow) {
-      const pending = localStorage.getItem('ecovista_google_pending');
-      if (pending) {
-        const data = JSON.parse(pending);
-        setGoogleData(data);
-        setForm((prev) => ({ ...prev, name: data.name || '', email: data.email || '' }));
-      }
-    }
-  }, [isGoogleFlow]);
+
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -44,24 +34,10 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      if (isGoogleFlow && googleData) {
-        // Complete Google signup with profile data
-        const pendingCredential = localStorage.getItem('ecovista_google_credential');
-        await googleAuth(pendingCredential, {
-          age: parseInt(form.age),
-          gender: form.gender,
-          country: form.country,
-          state: form.state,
-          district: form.district,
-        });
-        localStorage.removeItem('ecovista_google_pending');
-        localStorage.removeItem('ecovista_google_credential');
-      } else {
-        await signup({
-          ...form,
-          age: parseInt(form.age),
-        });
-      }
+      await signup({
+        ...form,
+        age: parseInt(form.age),
+      });
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.error || 'Signup failed. Please try again.');
@@ -74,37 +50,14 @@ export default function Signup() {
     }
   };
 
-  const handleGoogleSuccess = async (credentialResponse) => {
-    setError('');
-    setLoading(true);
-    try {
-      const result = await googleAuth(credentialResponse.credential);
-      if (result.needsProfile) {
-        setGoogleData(result.googleData);
-        setForm((prev) => ({
-          ...prev,
-          name: result.googleData.name || '',
-          email: result.googleData.email || '',
-        }));
-        localStorage.setItem('ecovista_google_credential', credentialResponse.credential);
-        // Switch to profile completion mode
-        navigate('/signup?google=true', { replace: true });
-      } else {
-        navigate('/');
-      }
-    } catch (err) {
-      setError(err.response?.data?.error || 'Google sign-in failed');
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   return (
     <div className="auth-container">
       <div className="auth-card animate-fade-in" style={{ maxWidth: 520 }}>
         <div className="auth-logo">
           <h1>🌿 EcoVista</h1>
-          <p>{isGoogleFlow ? 'Complete your profile' : 'Create your account'}</p>
+          <p>Create your account</p>
         </div>
 
         {error && (
@@ -140,12 +93,11 @@ export default function Signup() {
                 value={form.email}
                 onChange={handleChange}
                 required
-                disabled={isGoogleFlow}
+                disabled={false}
               />
             </div>
           </div>
 
-          {!isGoogleFlow && (
             <div className="form-group">
               <label className="form-label" htmlFor="signup-password">Password</label>
               <input
@@ -156,11 +108,10 @@ export default function Signup() {
                 placeholder="Min 6 characters"
                 value={form.password}
                 onChange={handleChange}
-                required={!isGoogleFlow}
+                required={true}
                 minLength={6}
               />
             </div>
-          )}
 
           <div className="grid-2">
             <div className="form-group">
@@ -250,20 +201,7 @@ export default function Signup() {
           </button>
         </form>
 
-        {!isGoogleFlow && (
-          <>
-            <div className="auth-divider">or continue with</div>
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <GoogleLogin
-                onSuccess={handleGoogleSuccess}
-                onError={() => setError('Google sign-in failed')}
-                theme="filled_black"
-                shape="pill"
-                size="large"
-              />
-            </div>
-          </>
-        )}
+
 
         <div className="auth-footer">
           Already have an account? <Link to="/login">Sign in</Link>
